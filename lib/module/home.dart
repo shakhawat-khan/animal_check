@@ -48,40 +48,35 @@ class _HomeState extends State<Home> {
     });
   }
 
-  void _openBottomSheet() {
-    if (_pickedImage != null && _predictionText.isNotEmpty) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) {
-          return DraggableScrollableSheet(
-            initialChildSize: 0.85,
-            minChildSize: 0.5,
-            maxChildSize: 0.95,
-            builder: (_, scrollController) => ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
-              child: Material(
-                color: Colors.white,
-                child: ImageTextBottomSheet(
-                  imageFile: _pickedImage!,
-                  text: _predictionText,
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    }
+void _openBottomSheet() {
+  if (_pickedImage != null && _predictionText.isNotEmpty) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // ✅ lets keyboard push content
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return Container(
+          height: MediaQuery.of(context).size.height, // ✅ fullscreen
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: ImageTextBottomSheet(
+            imageFile: _pickedImage!,
+            text: _predictionText,
+          ),
+        );
+      },
+    );
   }
-
+}
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E2C),
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text("Animal Identifier"),
         backgroundColor: Colors.transparent,

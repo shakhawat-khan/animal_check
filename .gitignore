@@ -53,3 +53,6 @@ GoogleService-Info.plist
 *.p8
 *.pem
 *.key
+
+# FVM Version Cache
+.fvm/

@@ -31,7 +31,7 @@ Future<String> sendImageToChatGPT(File imageFile, String prompt) async {
       {
         "role": "user",
         "content": [
-          {"type": "text", "text": "is that a $prompt ?"},
+          {"type": "text", "text": prompt},
           {
             "type": "image_url",
             "image_url": {"url": "data:image/jpeg;base64,$base64Image"}

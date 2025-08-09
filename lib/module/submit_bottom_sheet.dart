@@ -23,6 +23,10 @@ class _ImageTextBottomSheetState extends State<ImageTextBottomSheet>
   double _loadingProgress = 0;
   late AnimationController _progressController;
 
+  final List<Map<String, String>> _messages = []; // {role: "user"/"ai", content: "..."}
+  final TextEditingController _chatController = TextEditingController();
+  bool _isSending = false;
+
   @override
   void initState() {
     super.initState();
@@ -31,7 +35,7 @@ class _ImageTextBottomSheetState extends State<ImageTextBottomSheet>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: false);
 
-    // Defer the AI call a bit to let UI render first
+    // Initial AI Analysis
     Future.delayed(const Duration(milliseconds: 300), _loadResponse);
   }
 
@@ -47,19 +51,44 @@ class _ImageTextBottomSheetState extends State<ImageTextBottomSheet>
         chatGptResponse = response;
         _loadingProgress = 1;
         _progressController.stop();
+
+        // Add as first AI message
+        _messages.add({"role": "ai", "content": response ?? "No response"});
       });
     }
+  }
+
+  Future<void> _sendMessage() async {
+    if (_chatController.text.trim().isEmpty || _isSending) return;
+
+    final userMsg = _chatController.text.trim();
+    setState(() {
+      _messages.add({"role": "user", "content": userMsg});
+      _chatController.clear();
+      _isSending = true;
+    });
+
+    final response = await sendImageToChatGPT(widget.imageFile, userMsg);
+
+    setState(() {
+      _messages.add({"role": "ai", "content": response ?? "No response"});
+      _isSending = false;
+    });
   }
 
   @override
   void dispose() {
     _progressController.dispose();
+    _chatController.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
+Widget build(BuildContext context) {
+  return Padding(
+    // ✅ Makes sure the sheet moves up with the keyboard
+    padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+    child: AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOut,
       height: MediaQuery.of(context).size.height * 0.95,
@@ -76,7 +105,6 @@ class _ImageTextBottomSheetState extends State<ImageTextBottomSheet>
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Drag handle
           Center(
@@ -131,21 +159,9 @@ class _ImageTextBottomSheetState extends State<ImageTextBottomSheet>
             ),
           ),
 
-          const SizedBox(height: 20),
-
-          // Section Title
-          const Text(
-            "🤖 AI Analysis",
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
           const SizedBox(height: 12),
 
-          // Content area
+          // Chat Area
           Expanded(
             child: chatGptResponse == null
                 ? Column(
@@ -169,20 +185,82 @@ class _ImageTextBottomSheetState extends State<ImageTextBottomSheet>
                       ),
                     ],
                   )
-                : SingleChildScrollView(
-                    child: WordByWordTextAnimator(
-                      fullText: chatGptResponse!,
-                      wordDelay: const Duration(milliseconds: 60),
-                      textStyle: const TextStyle(
-                        fontSize: 15,
-                        color: Colors.white70,
-                        height: 1.6,
-                      ),
-                    ),
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final msg = _messages[index];
+                      final isUser = msg["role"] == "user";
+                      return Align(
+                        alignment: isUser
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isUser
+                                ? Colors.deepPurpleAccent
+                                : Colors.grey[800],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            msg["content"] ?? "",
+                            style: TextStyle(
+                              color: isUser ? Colors.white : Colors.white70,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
+          ),
+
+          // Chat Input
+          SafeArea(
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _chatController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: "Ask something...",
+                      hintStyle: const TextStyle(color: Colors.white54),
+                      filled: true,
+                      fillColor: Colors.grey[900],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _sendMessage,
+                  icon: _isSending
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(Icons.send, color: Colors.deepPurpleAccent),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-    );
-  }
-}
+    ),
+  );
+}}
